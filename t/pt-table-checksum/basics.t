@@ -286,7 +286,7 @@ $master_dbh->do('set sql_log_bin=1');
 
 $output = output(
    sub {
-      $exit_status = pt_table_checksum::main(@args, qw(-d test --chunk-size 2)) 
+      $exit_status = pt_table_checksum::main(@args, qw(-d test --chunk-size 2))
    },
    stderr => 1,
 );
@@ -345,7 +345,7 @@ is(
 $output = output(
    sub {
       $exit_status = pt_table_checksum::main(@args,
-         qw(-d test --chunk-size 2 --chunk-size-limit 0)) 
+         qw(-d test --chunk-size 2 --chunk-size-limit 0))
    },
    stderr => 1,
 );
@@ -408,7 +408,7 @@ $output = output(
 #    qr/replica.*stopped.*waiting/i,
 #    "Warns when waiting for replicas."
 # ) or diag($output);
-# 
+#
 
 # Check if no slaves were found. Bug 1087804:
 # Notice we simply execute the command but on 12347, the slaveless slave.
@@ -549,13 +549,46 @@ is(
 );
 
 # #############################################################################
+# Bug: can't parse column names containing newlines
+# #############################################################################
+$sb->load_file('master', "t/pt-table-checksum/samples/col_newline.sql");
+
+ok(
+   no_diff(
+      sub { pt_table_checksum::main(@args,
+         qw(-t test.t --chunk-size 3 --explain --explain))
+      },
+      "t/pt-table-checksum/samples/col_newline.out",
+   ),
+   "Bug (column newlines): queries"
+);
+
+$output = output(
+   sub { $exit_status = pt_table_checksum::main(@args,
+      qw(-t test.t --chunk-size 3 --explain --explain)) },
+   stderr => 1,
+);
+
+is(
+   $exit_status,
+   0,
+   "Bug (column newlines): 0 exit"
+);
+
+is(
+   PerconaTest::count_checksum_results($output, 'errors'),
+   0,
+   "Bug (column newlines): 0 errors"
+);
+
+# #############################################################################
 # Bug 1019479: does not work with sql_mode ONLY_FULL_GROUP_BY
 # #############################################################################
 
 # add a couple more modes to test that commas don't affect setting
 $master_dbh->do("SET sql_mode = 'NO_ZERO_DATE,ONLY_FULL_GROUP_BY,STRICT_ALL_TABLES'");
 
-# force chunk-size because bug doesn't show up if table done in one chunk 
+# force chunk-size because bug doesn't show up if table done in one chunk
 $exit_status = pt_table_checksum::main(@args,
    qw(--quiet --quiet -t sakila.actor --chunk-size=50));
 
